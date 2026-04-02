@@ -29,7 +29,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/deltamed">
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/review" element={<ReviewSession />} />

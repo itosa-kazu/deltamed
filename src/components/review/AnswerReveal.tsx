@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { S3Card } from '../../lib/types'
 import { addFeedback } from '../../lib/db'
 import { supabase } from '../../lib/supabase'
+import { getStateLabel } from '../../lib/stateLabels'
 
 interface Props {
   card: S3Card
@@ -277,7 +278,7 @@ function ButterflyRow({ state, probA, probB }: {
     <div>
       {/* State label — full width, centered */}
       <div className="text-center">
-        <span className="text-[10px] text-slate-500">{state}</span>
+        <span className="text-[10px] text-slate-500">{getStateLabel(state)}</span>
       </div>
       {/* Bars */}
       <div className="flex items-center gap-0 h-5">
@@ -346,7 +347,7 @@ function buildInsight(
 
   const lines: string[] = []
   const fmtStates = (chars: [string, number][]) =>
-    chars.slice(0, 2).map(([s, p]) => `${s} (${(p * 100).toFixed(0)}%)`).join('、')
+    chars.slice(0, 2).map(([s, p]) => `${getStateLabel(s)} (${(p * 100).toFixed(0)}%)`).join('、')
 
   if (charsA.length > 0) lines.push(`${nameA} → ${fmtStates(charsA)}`)
   if (charsB.length > 0) lines.push(`${nameB} → ${fmtStates(charsB)}`)
