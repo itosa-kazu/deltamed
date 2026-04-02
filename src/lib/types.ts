@@ -85,6 +85,24 @@ export interface S3Concept {
 
 // ─── Review session types ─────────────────────────────────
 
+// ─── Feedback types ───────────────────────────────────────
+
+export interface VeSMedFeedback {
+  id: string
+  feature_id: string
+  disease_a: string
+  disease_b: string
+  variable_id: string
+  state: string
+  feedback_type: 'wrong_cpt' | 'missing_edge' | 'wrong_edge' | 'other'
+  description: string
+  status: 'pending' | 'applied' | 'rejected'
+  created_at: Date
+  synced_at?: Date
+}
+
+// ─── Review session types ─────────────────────────────────
+
 export type SessionPhase =
   | 'loading'
   | 'question'       // Showing question, user generating answer

@@ -6,6 +6,7 @@ import type {
   DifferentialFeature,
   FSRSCardRecord,
   ReviewLogRecord,
+  VeSMedFeedback,
 } from './types'
 
 class DmedDatabase extends Dexie {
@@ -15,6 +16,7 @@ class DmedDatabase extends Dexie {
   features!: Table<DifferentialFeature>
   fsrsCards!: Table<FSRSCardRecord>
   reviewLogs!: Table<ReviewLogRecord>
+  feedbacks!: Table<VeSMedFeedback>
 
   constructor() {
     super('dmed-s3')
@@ -25,6 +27,7 @@ class DmedDatabase extends Dexie {
       features: 'id, pair_id, variable_id, delta',
       fsrsCards: 'id, due, state',
       reviewLogs: 'id, feature_id, reviewed_at',
+      feedbacks: 'id, feature_id, status, synced_at',
     })
   }
 }
@@ -109,6 +112,18 @@ export async function loadContentFromJSON(data: {
     await db.features.bulkAdd(data.features)
   })
 }
+
+// ─── Feedback ─────────────────────────────────────────────
+
+export async function addFeedback(feedback: VeSMedFeedback): Promise<void> {
+  await db.feedbacks.put(feedback)
+}
+
+export async function getPendingFeedbacks(): Promise<VeSMedFeedback[]> {
+  return db.feedbacks.where('status').equals('pending').toArray()
+}
+
+// ─── Stats ────────────────────────────────────────────────
 
 export async function getContentStats() {
   const [diseases, variables, pairs, features, cards, reviews] = await Promise.all([
