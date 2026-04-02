@@ -91,7 +91,11 @@ export async function getNewFeatureIds(limit = 10): Promise<string[]> {
 
 export async function isContentLoaded(): Promise<boolean> {
   const count = await db.diseases.count()
-  return count > 0
+  if (count === 0) return false
+  // Check if features have new per-variable format (dist_a field)
+  const sample = await db.features.limit(1).first()
+  if (sample && !sample.dist_a) return false
+  return true
 }
 
 export async function loadContentFromJSON(data: {
@@ -100,11 +104,14 @@ export async function loadContentFromJSON(data: {
   pairs: ConfusablePair[]
   features: DifferentialFeature[]
 }): Promise<void> {
-  await db.transaction('rw', [db.diseases, db.variables, db.pairs, db.features], async () => {
+  await db.transaction('rw', [db.diseases, db.variables, db.pairs, db.features, db.fsrsCards, db.reviewLogs], async () => {
     await db.diseases.clear()
     await db.variables.clear()
     await db.pairs.clear()
     await db.features.clear()
+    // Clear FSRS state — feature IDs change on re-import
+    await db.fsrsCards.clear()
+    await db.reviewLogs.clear()
 
     await db.diseases.bulkAdd(data.diseases)
     await db.variables.bulkAdd(data.variables)
