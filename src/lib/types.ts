@@ -28,12 +28,10 @@ export interface DifferentialFeature {
   id: string        // UUID
   pair_id: string   // -> ConfusablePair.id
   variable_id: string
-  state: string
-  prob_a: number    // P(state | disease_a)
-  prob_b: number    // P(state | disease_b)
-  delta: number     // |prob_a - prob_b|
-  favors: 'a' | 'b'
-  display_text: string  // Japanese display text
+  dist_a: Record<string, number>  // P(state | disease_a) for each state
+  dist_b: Record<string, number>  // P(state | disease_b) for each state
+  divergence: number              // Total Variation Distance
+  display_text: string
 }
 
 // ─── User state types ─────────────────────────────────────
@@ -74,13 +72,10 @@ export interface S3Card {
 
 export interface S3Concept {
   featureId: string
-  answer: string       // display_text from DifferentialFeature
   variable_ja: string
-  state: string
-  prob_a: number
-  prob_b: number
-  delta: number
-  favors: 'a' | 'b'
+  dist_a: Record<string, number>
+  dist_b: Record<string, number>
+  divergence: number
 }
 
 // ─── Review session types ─────────────────────────────────
@@ -93,7 +88,6 @@ export interface VeSMedFeedback {
   disease_a: string
   disease_b: string
   variable_id: string
-  state: string
   feedback_type: 'wrong_cpt' | 'missing_edge' | 'wrong_edge' | 'other'
   description: string
   status: 'pending' | 'applied' | 'rejected'

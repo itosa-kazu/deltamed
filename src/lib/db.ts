@@ -20,11 +20,11 @@ class DmedDatabase extends Dexie {
 
   constructor() {
     super('dmed-s3')
-    this.version(1).stores({
+    this.version(2).stores({
       diseases: 'id',
       variables: 'id, category',
       pairs: 'id, disease_a, disease_b, priority_layer',
-      features: 'id, pair_id, variable_id, delta',
+      features: 'id, pair_id, variable_id, divergence',
       fsrsCards: 'id, due, state',
       reviewLogs: 'id, feature_id, reviewed_at',
       feedbacks: 'id, feature_id, status, synced_at',
@@ -75,7 +75,7 @@ export async function getNewFeatureIds(limit = 10): Promise<string[]> {
   const pairIds = new Set(layer1Pairs.map(p => p.id))
 
   const allFeatures = await db.features
-    .orderBy('delta')
+    .orderBy('divergence')
     .reverse()
     .toArray()
 
@@ -115,8 +115,11 @@ export async function loadContentFromJSON(data: {
 
 // ─── Feedback ─────────────────────────────────────────────
 
-export async function addFeedback(feedback: VeSMedFeedback): Promise<void> {
+export async function addFeedback(feedback: VeSMedFeedback): Promise<boolean> {
+  const existing = await db.feedbacks.where('feature_id').equals(feedback.feature_id).first()
+  if (existing) return false // already reported
   await db.feedbacks.put(feedback)
+  return true
 }
 
 export async function getPendingFeedbacks(): Promise<VeSMedFeedback[]> {

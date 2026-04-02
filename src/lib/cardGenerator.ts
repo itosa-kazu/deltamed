@@ -10,7 +10,7 @@ import type {
 
 /**
  * Build review queue: due cards + new cards, returned as S3Card objects.
- * Level 1 only for now (single pair, single feature).
+ * Level 1 only for now (single pair, single variable).
  */
 export async function buildReviewQueue(maxCards = 20, newCardLimit = 5): Promise<S3Card[]> {
   // 1. Get due cards (reviews)
@@ -22,7 +22,6 @@ export async function buildReviewQueue(maxCards = 20, newCardLimit = 5): Promise
   let newFeatureIds: string[] = []
   if (newSlots > 0) {
     newFeatureIds = await getNewFeatureIds(newSlots)
-    // Initialize FSRS cards for new features
     for (const fid of newFeatureIds) {
       await initializeCard(fid)
     }
@@ -41,7 +40,7 @@ export async function buildReviewQueue(maxCards = 20, newCardLimit = 5): Promise
   const allDiseases = await db.diseases.toArray()
   allDiseases.forEach(d => diseaseMap.set(d.id, d))
 
-  const variableMap = new Map<string, string>() // id -> name_ja
+  const variableMap = new Map<string, string>()
   const allVars = await db.variables.toArray()
   allVars.forEach(v => variableMap.set(v.id, v.name_ja))
 
@@ -74,18 +73,15 @@ function buildLevel1Card(
 
   const concept: S3Concept = {
     featureId: feature.id,
-    answer: feature.display_text,
     variable_ja: varName,
-    state: feature.state,
-    prob_a: feature.prob_a,
-    prob_b: feature.prob_b,
-    delta: feature.delta,
-    favors: feature.favors,
+    dist_a: feature.dist_a,
+    dist_b: feature.dist_b,
+    divergence: feature.divergence,
   }
 
   return {
     level: 1,
-    question: `${da.name_ja} vs ${db_disease.name_ja}\n${varName}(${feature.state})は？`,
+    question: `${da.name_ja} vs ${db_disease.name_ja}`,
     pair_id: pair.id,
     disease_a_ja: da.name_ja,
     disease_b_ja: db_disease.name_ja,

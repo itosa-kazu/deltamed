@@ -33,27 +33,22 @@ export function QuestionCard({ card, onReady, index, total }: Props) {
         className="flex flex-col items-center w-full max-w-sm"
       >
         {/* Disease pair */}
-        <div className="text-center mb-6">
-          <span className="text-indigo-400 font-semibold text-base">
-            {card.disease_a_ja}
-          </span>
-          <span className="text-slate-600 mx-3 text-sm">vs</span>
-          <span className="text-amber-400 font-semibold text-base">
-            {card.disease_b_ja}
-          </span>
-        </div>
-
-        {/* Question card */}
         <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50
                         rounded-2xl p-8 w-full text-center shadow-lg shadow-black/20">
-          <div className="text-xs tracking-wider text-slate-500 uppercase mb-4">
+          <div className="text-xs tracking-wider text-slate-500 uppercase mb-6">
             鑑別ポイント
           </div>
-          <div className="text-2xl font-bold text-white mb-2">
-            {card.concepts[0]?.variable_ja}
+          <div className="mb-6">
+            <span className="text-indigo-400 font-semibold text-lg">
+              {card.disease_a_ja}
+            </span>
+            <span className="text-slate-600 mx-3 text-sm">vs</span>
+            <span className="text-amber-400 font-semibold text-lg">
+              {card.disease_b_ja}
+            </span>
           </div>
-          <div className="text-slate-400 text-sm">
-            {card.concepts[0]?.state}
+          <div className="text-slate-400 text-sm pt-4 border-t border-slate-700/50">
+            鑑別に有用な検査・所見は？
           </div>
         </div>
       </motion.div>

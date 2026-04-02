@@ -53,7 +53,7 @@ export function DataLoader({ onLoaded }: Props) {
       while (true) {
         const { data: batch, error: e4 } = await supabase
           .from('differential_features')
-          .select('id, pair_id, variable_id, state, prob_a, prob_b, delta, favors, display_text')
+          .select('id, pair_id, variable_id, dist_a, dist_b, divergence, display_text')
           .range(offset, offset + pageSize - 1)
         if (e4) throw new Error(`features: ${e4.message}`)
         if (!batch || batch.length === 0) break
