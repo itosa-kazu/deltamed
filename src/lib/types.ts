@@ -1,0 +1,100 @@
+// ─── Content types (from VeSMed export) ───────────────────
+
+export interface Disease {
+  id: string        // "D01", "D354"
+  name: string      // English name
+  name_ja: string   // Japanese name
+  category: string
+}
+
+export interface Variable {
+  id: string        // "S12", "L01", "E01"
+  name: string
+  name_ja: string
+  category: string  // symptom, sign, lab, risk_factor, temporal
+  states: string[]
+}
+
+export interface ConfusablePair {
+  id: string        // UUID
+  disease_a: string // Disease ID
+  disease_b: string // Disease ID
+  shared_var_count: number
+  confusion_count: number  // VeSMed empirical confusion count
+  priority_layer: number   // 1=empirical, 2=topological, 3=long-tail
+}
+
+export interface DifferentialFeature {
+  id: string        // UUID
+  pair_id: string   // -> ConfusablePair.id
+  variable_id: string
+  state: string
+  prob_a: number    // P(state | disease_a)
+  prob_b: number    // P(state | disease_b)
+  delta: number     // |prob_a - prob_b|
+  favors: 'a' | 'b'
+  display_text: string  // Japanese display text
+}
+
+// ─── User state types ─────────────────────────────────────
+
+export interface FSRSCardRecord {
+  id: string           // = feature_id
+  due: Date
+  stability: number
+  difficulty: number
+  elapsed_days: number
+  scheduled_days: number
+  reps: number
+  lapses: number
+  state: number        // 0=New, 1=Learning, 2=Review, 3=Relearning
+  last_review?: Date
+  updated_at: Date
+  synced_at?: Date     // null = needs sync to Supabase
+}
+
+export interface ReviewLogRecord {
+  id: string           // UUID
+  feature_id: string
+  rating: number       // 1=Again, 3=Good
+  reviewed_at: Date
+  synced_at?: Date
+}
+
+// ─── S3 Card types ────────────────────────────────────────
+
+export interface S3Card {
+  level: 1 | 2 | 3 | 4
+  question: string
+  pair_id: string
+  disease_a_ja: string
+  disease_b_ja: string
+  concepts: S3Concept[]
+}
+
+export interface S3Concept {
+  featureId: string
+  answer: string       // display_text from DifferentialFeature
+  variable_ja: string
+  state: string
+  prob_a: number
+  prob_b: number
+  delta: number
+  favors: 'a' | 'b'
+}
+
+// ─── Review session types ─────────────────────────────────
+
+export type SessionPhase =
+  | 'loading'
+  | 'question'       // Showing question, user generating answer
+  | 'revealing'      // Showing concepts one by one
+  | 'swiping'        // User swiping per concept
+  | 'summary'        // Session complete
+  | 'empty'          // No cards due
+
+export interface SessionStats {
+  total: number
+  recalled: number
+  forgotten: number
+}
