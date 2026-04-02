@@ -12,6 +12,7 @@ export function ReviewSession() {
     stats,
     onReady,
     onSwipe,
+    onFlag,
     restart,
   } = useReviewSession()
 
@@ -67,6 +68,7 @@ export function ReviewSession() {
     <AnswerReveal
       card={currentCard}
       onSwipe={onSwipe}
+      onFlag={onFlag}
       index={currentIndex}
       total={totalCards}
     />

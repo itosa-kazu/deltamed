@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import type { SessionStats } from '../../lib/types'
 
 interface Props {
@@ -10,38 +11,45 @@ export function SessionSummary({ stats, onRestart }: Props) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-6">
-      <div className="text-2xl font-bold mb-6">復習完了</div>
-
-      <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm mb-8">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <div className="text-3xl font-bold text-slate-200">{stats.total}</div>
-            <div className="text-sm text-slate-400 mt-1">合計</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-green-400">{stats.recalled}</div>
-            <div className="text-sm text-slate-400 mt-1">覚えた</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-red-400">{stats.forgotten}</div>
-            <div className="text-sm text-slate-400 mt-1">忘れた</div>
-          </div>
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-slate-700 text-center">
-          <div className="text-4xl font-bold text-blue-400">{rate}%</div>
-          <div className="text-sm text-slate-400 mt-1">正答率</div>
-        </div>
-      </div>
-
-      <button
-        onClick={onRestart}
-        className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white
-                   font-medium text-lg px-12 py-4 rounded-2xl transition-colors
-                   touch-manipulation"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="text-center"
       >
-        もう一度
-      </button>
+        <div className="text-xl font-bold text-white mb-6">復習完了</div>
+
+        <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50
+                        rounded-2xl p-6 w-full max-w-xs shadow-lg shadow-black/20 mb-8">
+          {/* Accuracy ring */}
+          <div className="text-5xl font-bold text-indigo-400 mb-1">{rate}%</div>
+          <div className="text-xs text-slate-500 mb-5">正答率</div>
+
+          <div className="grid grid-cols-3 gap-4 text-center pt-4 border-t border-slate-700/50">
+            <div>
+              <div className="text-xl font-bold text-slate-300">{stats.total}</div>
+              <div className="text-xs text-slate-500">合計</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-emerald-400">{stats.recalled}</div>
+              <div className="text-xs text-slate-500">覚えた</div>
+            </div>
+            <div>
+              <div className="text-xl font-bold text-red-400">{stats.forgotten}</div>
+              <div className="text-xs text-slate-500">忘れた</div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={onRestart}
+          className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white
+                     font-semibold text-base px-12 py-4 rounded-2xl
+                     shadow-lg shadow-indigo-900/30 touch-manipulation"
+        >
+          もう一度
+        </button>
+      </motion.div>
     </div>
   )
 }

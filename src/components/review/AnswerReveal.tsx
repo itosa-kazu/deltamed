@@ -7,11 +7,12 @@ import { supabase } from '../../lib/supabase'
 interface Props {
   card: S3Card
   onSwipe: (featureId: string, recalled: boolean) => void
+  onFlag: (featureId: string) => void
   index: number
   total: number
 }
 
-export function AnswerReveal({ card, onSwipe, index, total }: Props) {
+export function AnswerReveal({ card, onSwipe, onFlag, index, total }: Props) {
   const concept = card.concepts[0]
   const [flagged, setFlagged] = useState(false)
   const [showFlagConfirm, setShowFlagConfirm] = useState(false)
@@ -35,10 +36,8 @@ export function AnswerReveal({ card, onSwipe, index, total }: Props) {
       synced_at: undefined,
     }
 
-    // Save to IndexedDB
     await addFeedback(feedback)
 
-    // Also push to Supabase immediately
     try {
       await supabase.from('vesmed_feedback').insert({
         id: feedback.id,
@@ -57,161 +56,187 @@ export function AnswerReveal({ card, onSwipe, index, total }: Props) {
 
     setFlagged(true)
     setShowFlagConfirm(false)
+    setTimeout(() => onFlag(concept.featureId), 600)
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-6">
-      {/* Progress */}
-      <div className="absolute top-4 left-0 right-0 px-6">
-        <div className="flex justify-between text-sm text-slate-400 mb-2">
+    <div className="flex flex-col items-center justify-between h-full px-5 py-6">
+      {/* Progress bar */}
+      <div className="w-full">
+        <div className="flex justify-between text-xs text-slate-500 mb-1.5 px-0.5">
           <span>{index + 1} / {total}</span>
           <span>Level {card.level}</span>
         </div>
-        <div className="w-full h-1 bg-slate-700 rounded-full">
+        <div className="w-full h-0.5 bg-slate-800 rounded-full">
           <div
-            className="h-1 bg-blue-500 rounded-full transition-all duration-300"
+            className="h-0.5 bg-indigo-500 rounded-full transition-all duration-500"
             style={{ width: `${((index + 1) / total) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Answer card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm mb-6 relative"
-      >
-        {/* Flag button — top right corner */}
-        <button
-          onClick={() => flagged ? null : setShowFlagConfirm(true)}
-          className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center
-                      rounded-lg transition-colors touch-manipulation text-lg
-                      ${flagged
-                        ? 'bg-orange-600/30 text-orange-400 cursor-default'
-                        : 'bg-slate-700 hover:bg-orange-600/20 text-slate-400 hover:text-orange-400'
-                      }`}
-          title="VeSMedにフィードバック"
-        >
-          {flagged ? '!' : '?'}
-        </button>
-
-        {/* Variable & state */}
-        <div className="text-center mb-4">
-          <div className="text-sm text-slate-400 mb-1">{concept.variable_ja}</div>
-          <div className="text-lg font-medium">{concept.state}</div>
-        </div>
-
-        {/* Probability comparison */}
-        <div className="space-y-3">
-          {/* Disease A */}
-          <div className="flex items-center gap-3">
-            <span className="text-blue-400 text-sm w-24 text-right truncate">
-              {card.disease_a_ja}
-            </span>
-            <div className="flex-1 h-6 bg-slate-700 rounded-full overflow-hidden relative">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${concept.prob_a * 100}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-                className={`h-full rounded-full ${
-                  concept.favors === 'a' ? 'bg-green-500' : 'bg-slate-500'
-                }`}
-              />
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                {(concept.prob_a * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Disease B */}
-          <div className="flex items-center gap-3">
-            <span className="text-amber-400 text-sm w-24 text-right truncate">
-              {card.disease_b_ja}
-            </span>
-            <div className="flex-1 h-6 bg-slate-700 rounded-full overflow-hidden relative">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${concept.prob_b * 100}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-                className={`h-full rounded-full ${
-                  concept.favors === 'b' ? 'bg-green-500' : 'bg-slate-500'
-                }`}
-              />
-              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
-                {(concept.prob_b * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Delta indicator */}
-        <div className="text-center mt-4">
-          <span className="text-green-400 text-sm font-medium">
-            {higherDisease}を示唆 (Δ={concept.delta.toFixed(2)})
+      {/* Center content */}
+      <div className="flex flex-col items-center w-full max-w-sm">
+        {/* Disease pair header */}
+        <div className="text-center mb-5">
+          <span className="text-indigo-400 font-semibold text-base">
+            {card.disease_a_ja}
+          </span>
+          <span className="text-slate-600 mx-3 text-sm">vs</span>
+          <span className="text-amber-400 font-semibold text-base">
+            {card.disease_b_ja}
           </span>
         </div>
-      </motion.div>
 
-      {/* Flag confirmation toast */}
-      <AnimatePresence>
-        {showFlagConfirm && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="bg-orange-900/80 border border-orange-600/50 rounded-xl p-4
-                       w-full max-w-sm mb-4 text-center"
+        {/* Answer card */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="bg-slate-800/60 backdrop-blur border border-slate-700/50
+                     rounded-2xl p-6 w-full shadow-lg shadow-black/20 relative"
+        >
+          {/* Flag button */}
+          <button
+            onClick={() => flagged ? null : setShowFlagConfirm(true)}
+            className={`absolute top-3 right-3 w-7 h-7 flex items-center justify-center
+                        rounded-lg text-xs font-bold transition-colors touch-manipulation
+                        ${flagged
+                          ? 'bg-orange-500/20 text-orange-400'
+                          : 'bg-slate-700/60 hover:bg-orange-500/20 text-slate-500 hover:text-orange-400'
+                        }`}
           >
-            <div className="text-sm text-orange-200 mb-3">
-              このCPTに問題がありますか？
+            {flagged ? '!' : '?'}
+          </button>
+
+          {/* Variable & state */}
+          <div className="text-center mb-5">
+            <div className="text-xs tracking-wider text-slate-500 uppercase mb-1">
+              {concept.variable_ja}
             </div>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setShowFlagConfirm(false)}
-                className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm
-                           touch-manipulation"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={handleFlag}
-                className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium
-                           touch-manipulation"
-              >
-                報告する
-              </button>
-            </div>
+            <div className="text-lg font-bold text-white">{concept.state}</div>
+          </div>
+
+          {/* Probability bars */}
+          <div className="space-y-3">
+            <ProbBar
+              label={card.disease_a_ja}
+              prob={concept.prob_a}
+              color={concept.favors === 'a' ? 'green' : 'slate'}
+              labelColor="text-indigo-400"
+            />
+            <ProbBar
+              label={card.disease_b_ja}
+              prob={concept.prob_b}
+              color={concept.favors === 'b' ? 'green' : 'slate'}
+              labelColor="text-amber-400"
+            />
+          </div>
+
+          {/* Delta */}
+          <div className="text-center mt-4 pt-3 border-t border-slate-700/50">
+            <span className="text-emerald-400 text-xs font-medium">
+              {higherDisease}を示唆
+            </span>
+            <span className="text-slate-500 text-xs ml-2">
+              Δ = {concept.delta.toFixed(2)}
+            </span>
+          </div>
+        </motion.div>
+
+        {/* Flag confirmation */}
+        <AnimatePresence>
+          {showFlagConfirm && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="bg-orange-950/80 border border-orange-800/40 rounded-xl p-3
+                         w-full mt-3 text-center"
+            >
+              <div className="text-xs text-orange-300/80 mb-2">
+                このCPTに問題あり？
+              </div>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={() => setShowFlagConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-700/60 text-slate-400 text-xs
+                             touch-manipulation"
+                >
+                  いいえ
+                </button>
+                <button
+                  onClick={handleFlag}
+                  className="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-medium
+                             touch-manipulation"
+                >
+                  報告する
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {flagged && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-orange-400 text-xs mt-3"
+          >
+            VeSMedへ報告済み — スキップします
           </motion.div>
         )}
-      </AnimatePresence>
+      </div>
 
-      {/* Flagged confirmation */}
-      {flagged && (
-        <div className="text-orange-400 text-sm mb-4">
-          VeSMedへフィードバック済み
+      {/* Action buttons */}
+      {!flagged && (
+        <div className="flex gap-4 w-full max-w-sm">
+          <button
+            onClick={() => onSwipe(concept.featureId, false)}
+            className="flex-1 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/25
+                       border border-red-500/20 text-red-400
+                       font-semibold text-base py-4 rounded-2xl touch-manipulation"
+          >
+            忘れた
+          </button>
+          <button
+            onClick={() => onSwipe(concept.featureId, true)}
+            className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 active:bg-emerald-500/25
+                       border border-emerald-500/20 text-emerald-400
+                       font-semibold text-base py-4 rounded-2xl touch-manipulation"
+          >
+            覚えた
+          </button>
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Swipe buttons */}
-      <div className="flex gap-6">
-        <button
-          onClick={() => onSwipe(concept.featureId, false)}
-          className="bg-red-600/20 hover:bg-red-600/30 active:bg-red-600/40
-                     border border-red-500/30 text-red-400
-                     font-medium text-lg px-8 py-4 rounded-2xl transition-colors
-                     touch-manipulation"
-        >
-          忘れた
-        </button>
-        <button
-          onClick={() => onSwipe(concept.featureId, true)}
-          className="bg-green-600/20 hover:bg-green-600/30 active:bg-green-600/40
-                     border border-green-500/30 text-green-400
-                     font-medium text-lg px-8 py-4 rounded-2xl transition-colors
-                     touch-manipulation"
-        >
-          覚えた
-        </button>
+function ProbBar({ label, prob, color, labelColor }: {
+  label: string
+  prob: number
+  color: 'green' | 'slate'
+  labelColor: string
+}) {
+  const pct = prob * 100
+  const bgClass = color === 'green' ? 'bg-emerald-500' : 'bg-slate-600'
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={`${labelColor} text-xs w-20 text-right truncate font-medium`}>
+        {label}
+      </span>
+      <div className="flex-1 h-7 bg-slate-900/60 rounded-lg overflow-hidden relative">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.max(pct, 2)}%` }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className={`h-full rounded-lg ${bgClass}`}
+        />
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/90">
+          {pct.toFixed(0)}%
+        </span>
       </div>
     </div>
   )

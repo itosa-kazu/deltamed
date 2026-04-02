@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import type { S3Card } from '../../lib/types'
 
 interface Props {
@@ -9,49 +10,60 @@ interface Props {
 
 export function QuestionCard({ card, onReady, index, total }: Props) {
   return (
-    <div className="flex flex-col items-center justify-center h-full px-6">
-      {/* Progress */}
-      <div className="absolute top-4 left-0 right-0 px-6">
-        <div className="flex justify-between text-sm text-slate-400 mb-2">
+    <div className="flex flex-col items-center justify-between h-full px-5 py-6">
+      {/* Progress bar */}
+      <div className="w-full">
+        <div className="flex justify-between text-xs text-slate-500 mb-1.5 px-0.5">
           <span>{index + 1} / {total}</span>
           <span>Level {card.level}</span>
         </div>
-        <div className="w-full h-1 bg-slate-700 rounded-full">
+        <div className="w-full h-0.5 bg-slate-800 rounded-full">
           <div
-            className="h-1 bg-blue-500 rounded-full transition-all duration-300"
+            className="h-0.5 bg-indigo-500 rounded-full transition-all duration-500"
             style={{ width: `${((index + 1) / total) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Disease pair header */}
-      <div className="text-center mb-8">
-        <div className="text-lg font-bold text-blue-400 mb-1">
-          {card.disease_a_ja}
+      {/* Center content */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-col items-center w-full max-w-sm"
+      >
+        {/* Disease pair */}
+        <div className="text-center mb-6">
+          <span className="text-indigo-400 font-semibold text-base">
+            {card.disease_a_ja}
+          </span>
+          <span className="text-slate-600 mx-3 text-sm">vs</span>
+          <span className="text-amber-400 font-semibold text-base">
+            {card.disease_b_ja}
+          </span>
         </div>
-        <div className="text-slate-400 text-sm mb-1">vs</div>
-        <div className="text-lg font-bold text-amber-400">
-          {card.disease_b_ja}
-        </div>
-      </div>
 
-      {/* Question */}
-      <div className="bg-slate-800 rounded-2xl p-6 w-full max-w-sm text-center mb-8">
-        <div className="text-sm text-slate-400 mb-2">鑑別ポイント</div>
-        <div className="text-xl font-medium">
-          {card.concepts[0]?.variable_ja}
+        {/* Question card */}
+        <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50
+                        rounded-2xl p-8 w-full text-center shadow-lg shadow-black/20">
+          <div className="text-xs tracking-wider text-slate-500 uppercase mb-4">
+            鑑別ポイント
+          </div>
+          <div className="text-2xl font-bold text-white mb-2">
+            {card.concepts[0]?.variable_ja}
+          </div>
+          <div className="text-slate-400 text-sm">
+            {card.concepts[0]?.state}
+          </div>
         </div>
-        <div className="text-slate-300 mt-2 text-base">
-          ({card.concepts[0]?.state})
-        </div>
-      </div>
+      </motion.div>
 
       {/* Ready button */}
       <button
         onClick={onReady}
-        className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white
-                   font-medium text-lg px-12 py-4 rounded-2xl transition-colors
-                   touch-manipulation"
+        className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white
+                   font-semibold text-base w-full max-w-sm py-4 rounded-2xl
+                   shadow-lg shadow-indigo-900/30 touch-manipulation"
       >
         答えを見る
       </button>

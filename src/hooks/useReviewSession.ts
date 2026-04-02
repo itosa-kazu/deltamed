@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { buildReviewQueue } from '../lib/cardGenerator'
 import { reviewFeature } from '../lib/fsrs'
+import { db } from '../lib/db'
 import type { S3Card, SessionPhase, SessionStats } from '../lib/types'
 
 export function useReviewSession() {
@@ -30,6 +31,17 @@ export function useReviewSession() {
     setPhase('revealing')
   }, [])
 
+  // Advance to next card
+  const advanceCard = useCallback(() => {
+    const nextIndex = currentIndex + 1
+    if (nextIndex >= cards.length) {
+      setPhase('summary')
+    } else {
+      setCurrentIndex(nextIndex)
+      setPhase('question')
+    }
+  }, [currentIndex, cards.length])
+
   // User swipes a concept (recalled/not)
   const onSwipe = useCallback(async (featureId: string, recalled: boolean) => {
     await reviewFeature(featureId, recalled)
@@ -40,16 +52,15 @@ export function useReviewSession() {
       forgotten: prev.forgotten + (recalled ? 0 : 1),
     }))
 
-    // Check if all concepts in current card are done
-    // For Level 1, there's always 1 concept, so move to next card
-    const nextIndex = currentIndex + 1
-    if (nextIndex >= cards.length) {
-      setPhase('summary')
-    } else {
-      setCurrentIndex(nextIndex)
-      setPhase('question')
-    }
-  }, [currentIndex, cards.length])
+    advanceCard()
+  }, [advanceCard])
+
+  // User flagged a card — skip FSRS, delete card from schedule, advance
+  const onFlag = useCallback(async (featureId: string) => {
+    // Remove FSRS card so it won't appear in future reviews
+    await db.fsrsCards.delete(featureId)
+    advanceCard()
+  }, [advanceCard])
 
   // Restart session
   const restart = useCallback(() => {
@@ -64,6 +75,7 @@ export function useReviewSession() {
     stats,
     onReady,
     onSwipe,
+    onFlag,
     restart,
   }
 }
