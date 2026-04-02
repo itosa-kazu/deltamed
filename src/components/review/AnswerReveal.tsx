@@ -58,14 +58,10 @@ export function AnswerReveal({ card, onSwipe, onFlag, index, total }: Props) {
     setTimeout(() => onFlag(concept.featureId), 600)
   }
 
-  // Collect all states, sorted by max probability
+  // Collect all states, sorted by severity (descending)
   const allStates = Array.from(
     new Set([...Object.keys(concept.dist_a), ...Object.keys(concept.dist_b)])
-  ).sort((a, b) => {
-    const maxA = Math.max(concept.dist_a[a] ?? 0, concept.dist_b[a] ?? 0)
-    const maxB = Math.max(concept.dist_a[b] ?? 0, concept.dist_b[b] ?? 0)
-    return maxB - maxA
-  })
+  ).sort((a, b) => stateSeverity(b) - stateSeverity(a))
 
   const isBinary = allStates.length === 1 && allStates[0] === 'present'
 
@@ -342,8 +338,8 @@ function buildInsight(
     else if (pb > pa + 0.05) charsB.push([s, pb])
   }
 
-  charsA.sort((a, b) => b[1] - a[1])
-  charsB.sort((a, b) => b[1] - a[1])
+  charsA.sort((a, b) => stateSeverity(b[0]) - stateSeverity(a[0]))
+  charsB.sort((a, b) => stateSeverity(b[0]) - stateSeverity(a[0]))
 
   const lines: string[] = []
   const fmtStates = (chars: [string, number][]) =>
@@ -354,4 +350,47 @@ function buildInsight(
   if (lines.length === 0) lines.push('分布がほぼ同じ')
 
   return lines
+}
+
+/** State名から程度スコアを返す（高い=より異常/重度） */
+function stateSeverity(s: string): number {
+  // 極端な異常値
+  if (/^extreme|^very_high|^markedly/.test(s)) return 90
+  if (/^crisis/.test(s)) return 88
+  if (/^overt_DIC/.test(s)) return 87
+  if (/^very_prolonged/.test(s)) return 86
+  if (/^severe/.test(s)) return 85
+  if (/^very_low/.test(s)) return 84
+  // 中等度異常
+  if (/^high(?!_over_0)/.test(s)) return 70
+  if (/^elevated/.test(s)) return 68
+  if (/^moderate/.test(s)) return 65
+  if (/^pre_DIC/.test(s)) return 63
+  if (/^mildly_prolonged/.test(s)) return 62
+  // 軽度異常
+  if (/^mild/.test(s)) return 55
+  if (/^low(?!_under_0)/.test(s)) return 50
+  if (/^mildly_low/.test(s)) return 48
+  // 正常
+  if (/^normal/.test(s)) return 30
+  if (s === 'absent' || s === 'negative' || s === 'no' || s === 'none') return 20
+  // バイタル（温度降順）
+  if (/over_40/.test(s)) return 92
+  if (/39.*40/.test(s)) return 80
+  if (/38.*39/.test(s)) return 70
+  if (/37.*38/.test(s)) return 60
+  if (/under_37/.test(s)) return 40
+  if (/hypothermia/.test(s)) return 35
+  // 脈拍降順
+  if (/over_120/.test(s)) return 85
+  if (/100_120/.test(s)) return 70
+  if (/under_100/.test(s)) return 40
+  // SpO2（低い方が重度）
+  if (/severe_hypoxia/.test(s)) return 85
+  if (/mild_hypoxia/.test(s)) return 65
+  // ショック等
+  if (s === 'shock') return 95
+  if (/hypotension/.test(s)) return 82
+  // その他 — デフォルトは中間
+  return 40
 }
