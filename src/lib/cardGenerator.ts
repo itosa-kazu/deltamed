@@ -88,13 +88,47 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
 
     if (useful.length === 0) continue
 
-    const concepts: S3Concept[] = useful.map(f => ({
-      featureId: f.id,
-      variable_ja: variableMap.get(f.variable_id) || f.variable_id,
-      dist_a: f.dist_a,
-      dist_b: f.dist_b,
-      divergence: f.divergence,
-    }))
+    const concepts: S3Concept[] = useful.map(f => {
+      // Find the state with max |log(LR)|
+      const allStates = new Set([...Object.keys(f.dist_a), ...Object.keys(f.dist_b)])
+      let bestState = ''
+      let bestLogLR = 0
+      let bestFavors: 'a' | 'b' = 'a'
+      for (const s of allStates) {
+        const pa = f.dist_a[s] ?? 0
+        const pb = f.dist_b[s] ?? 0
+        if (pa > 0.001 && pb > 0.001) {
+          const logLR = Math.log(pa / pb)
+          if (Math.abs(logLR) > Math.abs(bestLogLR)) {
+            bestLogLR = logLR
+            bestState = s
+            bestFavors = logLR > 0 ? 'a' : 'b'
+          }
+        } else if (pa > 0.05 && pb <= 0.001) {
+          if (4.0 > Math.abs(bestLogLR)) {
+            bestLogLR = 4.0
+            bestState = s
+            bestFavors = 'a'
+          }
+        } else if (pb > 0.05 && pa <= 0.001) {
+          if (4.0 > Math.abs(bestLogLR)) {
+            bestLogLR = -4.0
+            bestState = s
+            bestFavors = 'b'
+          }
+        }
+      }
+      return {
+        featureId: f.id,
+        variable_ja: variableMap.get(f.variable_id) || f.variable_id,
+        dist_a: f.dist_a,
+        dist_b: f.dist_b,
+        divergence: f.divergence,
+        bestState,
+        bestFavors,
+        bestLR: Math.exp(Math.abs(bestLogLR)),
+      }
+    })
 
     // Trap info (max|logLR| < 0.4 = LR < 1.5), top 3
     const traps: S3Trap[] = pairFeatures

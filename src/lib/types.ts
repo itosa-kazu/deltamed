@@ -83,6 +83,12 @@ export interface S3Concept {
   dist_a: Record<string, number>
   dist_b: Record<string, number>
   divergence: number
+  /** The state that produces the max LR */
+  bestState: string
+  /** Which disease the bestState favors: 'a' or 'b' */
+  bestFavors: 'a' | 'b'
+  /** The LR value (not log) for display */
+  bestLR: number
 }
 
 // ─── Review session types ─────────────────────────────────

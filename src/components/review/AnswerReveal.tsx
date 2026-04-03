@@ -76,6 +76,8 @@ export function AnswerReveal({ card, onComplete, index, total }: Props) {
             rank={i + 1}
             recalled={checked.has(concept.featureId)}
             onToggle={() => toggle(concept.featureId)}
+            diseaseA={card.disease_a_ja}
+            diseaseB={card.disease_b_ja}
           />
         ))}
 
@@ -120,11 +122,13 @@ export function AnswerReveal({ card, onComplete, index, total }: Props) {
 }
 
 /** One concept block with recall checkbox */
-function ConceptBlock({ concept, rank, recalled, onToggle }: {
+function ConceptBlock({ concept, rank, recalled, onToggle, diseaseA, diseaseB }: {
   concept: S3Concept
   rank: number
   recalled: boolean
   onToggle: () => void
+  diseaseA: string
+  diseaseB: string
 }) {
   const allStates = Array.from(
     new Set([...Object.keys(concept.dist_a), ...Object.keys(concept.dist_b)])
@@ -156,8 +160,17 @@ function ConceptBlock({ concept, rank, recalled, onToggle }: {
           </div>
           <span className="text-sm font-bold text-emerald-400">{concept.variable_ja}</span>
         </div>
-        <span className="text-[10px] text-slate-600 shrink-0">LR {Math.exp(concept.divergence).toFixed(1)}x</span>
+        <span className="text-[10px] text-slate-600 shrink-0">LR {concept.bestLR.toFixed(1)}x</span>
       </div>
+
+      {/* Best state explanation */}
+      {concept.bestState && (
+        <div className="text-[10px] text-slate-400 mb-2 ml-7">
+          ← {getStateLabel(concept.bestState)}:
+          {' '}{concept.bestFavors === 'a' ? diseaseA : diseaseB}に
+          {concept.bestLR.toFixed(1)}倍
+        </div>
+      )}
 
       {/* Distribution */}
       {isBinary ? (
