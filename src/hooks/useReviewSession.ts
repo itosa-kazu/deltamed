@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { buildReviewQueue } from '../lib/cardGenerator'
-import { reviewFeature } from '../lib/fsrs'
-import { db } from '../lib/db'
+import { reviewPairByRatio } from '../lib/fsrs'
 import type { S3Card, SessionPhase, SessionStats } from '../lib/types'
 
 export function useReviewSession() {
@@ -12,7 +11,6 @@ export function useReviewSession() {
 
   const currentCard = cards[currentIndex] ?? null
 
-  // Load review queue
   const loadQueue = useCallback(async () => {
     setPhase('loading')
     const queue = await buildReviewQueue()
@@ -26,12 +24,10 @@ export function useReviewSession() {
     loadQueue()
   }, [loadQueue])
 
-  // User taps "Ready" — show answer
   const onReady = useCallback(() => {
     setPhase('revealing')
   }, [])
 
-  // Advance to next card
   const advanceCard = useCallback(() => {
     const nextIndex = currentIndex + 1
     if (nextIndex >= cards.length) {
@@ -42,27 +38,19 @@ export function useReviewSession() {
     }
   }, [currentIndex, cards.length])
 
-  // User rates the pair (recalled/not) — FSRS keyed by pair_id
-  const onSwipe = useCallback(async (_featureId: string, recalled: boolean) => {
-    if (!currentCard) return
-    await reviewFeature(currentCard.pair_id, recalled)
+  // User completes a card with recall ratio
+  const onComplete = useCallback(async (pairId: string, ratio: number) => {
+    await reviewPairByRatio(pairId, ratio)
 
     setStats(prev => ({
       total: prev.total + 1,
-      recalled: prev.recalled + (recalled ? 1 : 0),
-      forgotten: prev.forgotten + (recalled ? 0 : 1),
+      recalled: prev.recalled + (ratio >= 0.6 ? 1 : 0),
+      forgotten: prev.forgotten + (ratio < 0.6 ? 1 : 0),
     }))
 
     advanceCard()
   }, [advanceCard])
 
-  // User flagged a card — skip FSRS, delete card from schedule, advance
-  const onFlag = useCallback(async (featureId: string) => {
-    await db.fsrsCards.delete(featureId)
-    advanceCard()
-  }, [advanceCard])
-
-  // Restart session
   const restart = useCallback(() => {
     loadQueue()
   }, [loadQueue])
@@ -74,8 +62,7 @@ export function useReviewSession() {
     totalCards: cards.length,
     stats,
     onReady,
-    onSwipe,
-    onFlag,
+    onComplete,
     restart,
   }
 }

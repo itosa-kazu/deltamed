@@ -1,6 +1,6 @@
-import { FSRS, Rating, createEmptyCard, type Card } from 'ts-fsrs'
+import { FSRS, Rating, createEmptyCard, type Card, type Grade } from 'ts-fsrs'
 import { db } from './db'
-import type { FSRSCardRecord, ReviewLogRecord } from './types'
+import type { FSRSCardRecord } from './types'
 
 const fsrs = new FSRS({})
 
@@ -42,8 +42,21 @@ function recordToCard(record: FSRSCardRecord): Card {
 }
 
 /**
- * Review a feature card with binary self-assessment.
- * recalled=true → Rating.Good, recalled=false → Rating.Again
+ * Compute FSRS rating from recall ratio (0.0 ~ 1.0).
+ *   0-20%  → Again
+ *  20-60%  → Hard
+ *  60-90%  → Good
+ *  90-100% → Easy
+ */
+export function ratioToRating(ratio: number): Grade {
+  if (ratio < 0.2) return Rating.Again
+  if (ratio < 0.6) return Rating.Hard
+  if (ratio < 0.9) return Rating.Good
+  return Rating.Easy
+}
+
+/**
+ * Review a card with a given FSRS rating.
  */
 export async function reviewFeature(
   featureId: string,
@@ -71,14 +84,43 @@ export async function reviewFeature(
   await db.fsrsCards.put(newRecord)
 
   // Save review log
-  const log: ReviewLogRecord = {
+  await db.reviewLogs.add({
     id: crypto.randomUUID(),
     feature_id: featureId,
     rating,
     reviewed_at: now,
     synced_at: undefined,
-  }
-  await db.reviewLogs.add(log)
+  })
+
+  return newRecord
+}
+
+/**
+ * Review a pair card with recall ratio (0.0 ~ 1.0).
+ */
+export async function reviewPairByRatio(
+  pairId: string,
+  ratio: number,
+): Promise<FSRSCardRecord> {
+  const rating = ratioToRating(ratio)
+  const now = new Date()
+
+  let existing = await db.fsrsCards.get(pairId)
+  const card = existing ? recordToCard(existing) : createNewFSRSCard()
+
+  const result = fsrs.repeat(card, now)
+  const scheduled = result[rating]
+
+  const newRecord = cardToRecord(pairId, scheduled.card)
+  await db.fsrsCards.put(newRecord)
+
+  await db.reviewLogs.add({
+    id: crypto.randomUUID(),
+    feature_id: pairId,
+    rating,
+    reviewed_at: now,
+    synced_at: undefined,
+  })
 
   return newRecord
 }

@@ -11,8 +11,7 @@ export function ReviewSession() {
     totalCards,
     stats,
     onReady,
-    onSwipe,
-    onFlag,
+    onComplete,
     restart,
   } = useReviewSession()
 
@@ -55,12 +54,10 @@ export function ReviewSession() {
     )
   }
 
-  // phase === 'revealing'
   return (
     <AnswerReveal
       card={currentCard}
-      onSwipe={onSwipe}
-      onFlag={onFlag}
+      onComplete={onComplete}
       index={currentIndex}
       total={totalCards}
     />

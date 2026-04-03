@@ -1,17 +1,43 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import type { S3Card, S3Concept } from '../../lib/types'
 import { getStateLabel } from '../../lib/stateLabels'
+import { ratioToRating } from '../../lib/fsrs'
+import { Rating } from 'ts-fsrs'
 
 interface Props {
   card: S3Card
-  onSwipe: (featureId: string, recalled: boolean) => void
-  onFlag: (featureId: string) => void
+  onComplete: (pairId: string, ratio: number) => void
   index: number
   total: number
 }
 
-export function AnswerReveal({ card, onSwipe, index, total }: Props) {
+const RATING_LABELS: Record<number, { text: string; color: string }> = {
+  [Rating.Again]: { text: 'Again', color: 'text-red-400' },
+  [Rating.Hard]:  { text: 'Hard',  color: 'text-amber-400' },
+  [Rating.Good]:  { text: 'Good',  color: 'text-emerald-400' },
+  [Rating.Easy]:  { text: 'Easy',  color: 'text-cyan-400' },
+}
+
+export function AnswerReveal({ card, onComplete, index, total }: Props) {
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+
   if (card.concepts.length === 0) return null
+
+  const ratio = card.concepts.length > 0
+    ? checked.size / card.concepts.length
+    : 0
+  const rating = ratioToRating(ratio)
+  const ratingInfo = RATING_LABELS[rating]
+
+  const toggle = (featureId: string) => {
+    setChecked(prev => {
+      const next = new Set(prev)
+      if (next.has(featureId)) next.delete(featureId)
+      else next.add(featureId)
+      return next
+    })
+  }
 
   return (
     <div className="flex flex-col h-full px-4 py-4">
@@ -42,10 +68,15 @@ export function AnswerReveal({ card, onSwipe, index, total }: Props) {
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-2"
            style={{ WebkitOverflowScrolling: 'touch' }}>
-        {/* All concepts */}
+        {/* All concepts with checkboxes */}
         {card.concepts.map((concept, i) => (
-          <ConceptBlock key={concept.featureId} concept={concept} rank={i + 1}
-                        diseaseA={card.disease_a_ja} diseaseB={card.disease_b_ja} />
+          <ConceptBlock
+            key={concept.featureId}
+            concept={concept}
+            rank={i + 1}
+            recalled={checked.has(concept.featureId)}
+            onToggle={() => toggle(concept.featureId)}
+          />
         ))}
 
         {/* Trap knowledge */}
@@ -65,35 +96,35 @@ export function AnswerReveal({ card, onSwipe, index, total }: Props) {
         )}
       </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-4 w-full max-w-md mx-auto shrink-0 pt-2">
+      {/* Score + Next button */}
+      <div className="shrink-0 pt-2 space-y-2">
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-sm text-slate-400">
+            {checked.size}/{card.concepts.length} 正解
+          </span>
+          <span className={`text-sm font-bold ${ratingInfo.color}`}>
+            → {ratingInfo.text}
+          </span>
+        </div>
         <button
-          onClick={() => onSwipe(card.pair_id, false)}
-          className="flex-1 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/25
-                     border border-red-500/20 text-red-400
-                     font-semibold text-sm py-3.5 rounded-2xl touch-manipulation"
+          onClick={() => onComplete(card.pair_id, ratio)}
+          className="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white
+                     font-semibold text-base py-3.5 rounded-2xl
+                     shadow-lg shadow-indigo-900/30 touch-manipulation"
         >
-          忘れた
-        </button>
-        <button
-          onClick={() => onSwipe(card.pair_id, true)}
-          className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 active:bg-emerald-500/25
-                     border border-emerald-500/20 text-emerald-400
-                     font-semibold text-sm py-3.5 rounded-2xl touch-manipulation"
-        >
-          覚えた
+          次へ
         </button>
       </div>
     </div>
   )
 }
 
-/** One concept block: variable name + compact butterfly chart + insight */
-function ConceptBlock({ concept, rank, diseaseA, diseaseB }: {
+/** One concept block with recall checkbox */
+function ConceptBlock({ concept, rank, recalled, onToggle }: {
   concept: S3Concept
   rank: number
-  diseaseA: string
-  diseaseB: string
+  recalled: boolean
+  onToggle: () => void
 }) {
   const allStates = Array.from(
     new Set([...Object.keys(concept.dist_a), ...Object.keys(concept.dist_b)])
@@ -105,18 +136,29 @@ function ConceptBlock({ concept, rank, diseaseA, diseaseB }: {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: rank * 0.08 }}
-      className="bg-slate-800/60 backdrop-blur border border-slate-700/50
-                 rounded-xl p-3 w-full"
+      transition={{ duration: 0.3, delay: rank * 0.06 }}
+      className={`border rounded-xl p-3 w-full transition-colors
+                  ${recalled
+                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    : 'bg-slate-800/60 border-slate-700/50'}`}
     >
-      {/* Variable name + TVD */}
-      <div className="flex items-center justify-between mb-2">
+      {/* Header: checkbox + variable name + TVD */}
+      <button
+        onClick={onToggle}
+        className="flex items-center justify-between w-full mb-2 touch-manipulation"
+      >
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-600 font-mono w-4">{rank}.</span>
+          <div className={`w-5 h-5 rounded flex items-center justify-center text-xs
+                          border transition-colors shrink-0
+                          ${recalled
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'bg-slate-700/40 border-slate-600/50 text-transparent'}`}>
+            {recalled ? '✓' : '·'}
+          </div>
           <span className="text-sm font-bold text-emerald-400">{concept.variable_ja}</span>
         </div>
-        <span className="text-[10px] text-slate-600">TVD {concept.divergence.toFixed(2)}</span>
-      </div>
+        <span className="text-[10px] text-slate-600 shrink-0">TVD {concept.divergence.toFixed(2)}</span>
+      </button>
 
       {/* Distribution */}
       {isBinary ? (
@@ -136,11 +178,6 @@ function ConceptBlock({ concept, rank, diseaseA, diseaseB }: {
           ))}
         </div>
       )}
-
-      {/* Compact insight */}
-      <div className="mt-1.5 text-[10px] text-slate-400 leading-relaxed">
-        {buildCompactInsight(diseaseA, diseaseB, concept.dist_a, concept.dist_b, isBinary)}
-      </div>
     </motion.div>
   )
 }
@@ -176,7 +213,6 @@ function ButterflyRow({ state, probA, probB }: {
 }) {
   const pctA = probA * 100
   const pctB = probB * 100
-
   return (
     <div>
       <div className="text-center">
@@ -209,36 +245,6 @@ function ButterflyRow({ state, probA, probB }: {
       </div>
     </div>
   )
-}
-
-function buildCompactInsight(
-  nameA: string, nameB: string,
-  dist_a: Record<string, number>,
-  dist_b: Record<string, number>,
-  isBinary: boolean,
-): string {
-  if (isBinary) {
-    const pa = (dist_a['present'] ?? 0) * 100
-    const pb = (dist_b['present'] ?? 0) * 100
-    const higher = pa > pb ? nameA : nameB
-    return `${higher}で高頻度 (${Math.max(pa, pb).toFixed(0)}% vs ${Math.min(pa, pb).toFixed(0)}%)`
-  }
-
-  const allStates = new Set([...Object.keys(dist_a), ...Object.keys(dist_b)])
-  const charsA: string[] = []
-  const charsB: string[] = []
-
-  for (const s of allStates) {
-    const pa = dist_a[s] ?? 0
-    const pb = dist_b[s] ?? 0
-    if (pa > pb + 0.1) charsA.push(getStateLabel(s))
-    else if (pb > pa + 0.1) charsB.push(getStateLabel(s))
-  }
-
-  const parts: string[] = []
-  if (charsA.length > 0) parts.push(`${nameA}→${charsA.slice(0, 2).join('/')}`)
-  if (charsB.length > 0) parts.push(`${nameB}→${charsB.slice(0, 2).join('/')}`)
-  return parts.join(' | ') || '分布がほぼ同じ'
 }
 
 function stateSeverity(s: string): number {
