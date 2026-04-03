@@ -127,6 +127,7 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
         bestState,
         bestFavors,
         bestLR: Math.exp(Math.abs(bestLogLR)),
+        provenance: f.provenance,
       }
     })
 

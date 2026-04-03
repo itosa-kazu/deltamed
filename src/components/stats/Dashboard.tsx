@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getContentStats } from '../../lib/db'
 import { getTodayStats } from '../../lib/fsrs'
 
@@ -20,6 +21,7 @@ interface TodayStats {
 }
 
 export function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState<Stats | null>(null)
   const [today, setToday] = useState<TodayStats | null>(null)
 
@@ -106,6 +108,18 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Audit link */}
+      <button
+        onClick={() => navigate('/audit')}
+        className="w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-4
+                   text-left transition-colors"
+      >
+        <div className="text-sm font-medium text-slate-300">データ審計</div>
+        <div className="text-xs text-slate-500 mt-0.5">
+          CPT整合性・divergence検証・死区チェック
+        </div>
+      </button>
     </div>
   )
 }

@@ -7,7 +7,9 @@ import type {
   FSRSCardRecord,
   ReviewLogRecord,
   VeSMedFeedback,
+  Provenance,
 } from './types'
+import { supabase } from './supabase'
 
 class DmedDatabase extends Dexie {
   diseases!: Table<Disease>
@@ -25,6 +27,15 @@ class DmedDatabase extends Dexie {
       variables: 'id, category',
       pairs: 'id, disease_a, disease_b, priority_layer',
       features: 'id, pair_id, variable_id, divergence',
+      fsrsCards: 'id, due, state',
+      reviewLogs: 'id, feature_id, reviewed_at',
+      feedbacks: 'id, feature_id, status, synced_at',
+    })
+    this.version(3).stores({
+      diseases: 'id',
+      variables: 'id, category',
+      pairs: 'id, disease_a, disease_b, priority_layer',
+      features: 'id, pair_id, variable_id, divergence, provenance.verified',
       fsrsCards: 'id, due, state',
       reviewLogs: 'id, feature_id, reviewed_at',
       feedbacks: 'id, feature_id, status, synced_at',
@@ -94,7 +105,7 @@ export async function getNewPairIds(limit = 10): Promise<string[]> {
 // ─── Content loading ──────────────────────────────────────
 
 /** Bump this when Supabase data changes to force re-download */
-const DATA_VERSION = 5  // v5: D76 CPT修正 + confusion>=2フィルタ(33対) + 報告ボタン
+const DATA_VERSION = 6  // v6: provenance tracking (CPT校対メタデータ)
 
 export async function isContentLoaded(): Promise<boolean> {
   const count = await db.diseases.count()
@@ -142,6 +153,59 @@ export async function addFeedback(feedback: VeSMedFeedback): Promise<boolean> {
 
 export async function getPendingFeedbacks(): Promise<VeSMedFeedback[]> {
   return db.feedbacks.where('status').equals('pending').toArray()
+}
+
+// ─── Provenance ──────────────────────────────────────────
+
+export async function verifyFeature(
+  featureId: string,
+  source: Provenance['source'],
+  reference?: string,
+): Promise<void> {
+  const prov: Provenance = {
+    source,
+    verified: true,
+    verified_at: new Date().toISOString(),
+    reference,
+  }
+  // Update local
+  await db.features.update(featureId, { provenance: prov })
+  // Sync to Supabase
+  try {
+    await supabase
+      .from('differential_features')
+      .update({ provenance: prov })
+      .eq('id', featureId)
+  } catch { /* offline */ }
+}
+
+export async function batchSetProvenance(
+  featureIds: string[],
+  source: Provenance['source'],
+  verified: boolean,
+  reference?: string,
+): Promise<number> {
+  const prov: Provenance = {
+    source,
+    verified,
+    verified_at: verified ? new Date().toISOString() : undefined,
+    reference,
+  }
+  let count = 0
+  await db.transaction('rw', db.features, async () => {
+    for (const id of featureIds) {
+      await db.features.update(id, { provenance: prov })
+      count++
+    }
+  })
+  // Sync to Supabase in batch
+  try {
+    await supabase
+      .from('differential_features')
+      .update({ provenance: prov })
+      .in('id', featureIds)
+  } catch { /* offline */ }
+  return count
 }
 
 // ─── Stats ────────────────────────────────────────────────

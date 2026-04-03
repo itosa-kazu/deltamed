@@ -50,11 +50,21 @@ export function DataLoader({ onLoaded }: Props) {
       const allFeatures: Record<string, unknown>[] = []
       let offset = 0
       const pageSize = 1000
+      // Try with provenance; fall back without if column doesn't exist yet
+      let hasProvenance = true
       while (true) {
+        const cols = hasProvenance
+          ? 'id, pair_id, variable_id, dist_a, dist_b, divergence, display_text, provenance'
+          : 'id, pair_id, variable_id, dist_a, dist_b, divergence, display_text'
         const { data: batch, error: e4 } = await supabase
           .from('differential_features')
-          .select('id, pair_id, variable_id, dist_a, dist_b, divergence, display_text')
+          .select(cols)
           .range(offset, offset + pageSize - 1)
+        if (e4 && hasProvenance && offset === 0) {
+          // provenance column likely doesn't exist yet — retry without it
+          hasProvenance = false
+          continue
+        }
         if (e4) throw new Error(`features: ${e4.message}`)
         if (!batch || batch.length === 0) break
         allFeatures.push(...batch)

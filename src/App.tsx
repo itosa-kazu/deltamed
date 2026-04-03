@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell'
 import { ReviewSession } from './components/review/ReviewSession'
 import { PairList } from './components/browse/PairList'
 import { Dashboard } from './components/stats/Dashboard'
+import { AuditPage } from './components/audit/AuditPage'
 import { DataLoader } from './components/DataLoader'
 import { isContentLoaded } from './lib/db'
 
@@ -35,6 +36,7 @@ function App() {
           <Route path="/review" element={<ReviewSession />} />
           <Route path="/browse" element={<PairList />} />
           <Route path="/stats" element={<Dashboard />} />
+          <Route path="/audit" element={<AuditPage />} />
           <Route path="*" element={<Navigate to="/review" replace />} />
         </Route>
       </Routes>

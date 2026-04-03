@@ -191,6 +191,16 @@ function ConceptBlock({ concept, rank, recalled, onToggle, diseaseA, diseaseB }:
           <span className="text-sm font-bold text-emerald-400">{concept.variable_ja}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {(!concept.provenance || !concept.provenance.verified) && (
+            <span className="text-[8px] px-1 py-px rounded bg-red-900/40 text-red-400/80">
+              未校
+            </span>
+          )}
+          {concept.provenance?.verified && (
+            <span className="text-[8px] px-1 py-px rounded bg-emerald-900/30 text-emerald-500/70">
+              校
+            </span>
+          )}
           <span className="text-[10px] text-slate-600">LR {concept.bestLR.toFixed(1)}x</span>
           <button
             onClick={handleFlag}

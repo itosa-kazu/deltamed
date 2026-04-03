@@ -24,6 +24,14 @@ export interface ConfusablePair {
   priority_layer: number   // 1=empirical, 2=topological, 3=long-tail
 }
 
+export interface Provenance {
+  source: 'ai_generated' | 'literature' | 'expert' | 'vesmed_raw'
+  verified: boolean
+  verified_at?: string        // ISO date
+  reference?: string          // "UpToDate 2025", "Harrison ch.12"
+  notes?: string              // manual correction notes
+}
+
 export interface DifferentialFeature {
   id: string        // UUID
   pair_id: string   // -> ConfusablePair.id
@@ -32,6 +40,7 @@ export interface DifferentialFeature {
   dist_b: Record<string, number>  // P(state | disease_b) for each state
   divergence: number              // Total Variation Distance
   display_text: string
+  provenance?: Provenance
 }
 
 // ─── User state types ─────────────────────────────────────
@@ -89,6 +98,7 @@ export interface S3Concept {
   bestFavors: 'a' | 'b'
   /** The LR value (not log) for display */
   bestLR: number
+  provenance?: Provenance
 }
 
 // ─── Review session types ─────────────────────────────────
