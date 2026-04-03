@@ -42,9 +42,10 @@ export function useReviewSession() {
     }
   }, [currentIndex, cards.length])
 
-  // User swipes a concept (recalled/not)
-  const onSwipe = useCallback(async (featureId: string, recalled: boolean) => {
-    await reviewFeature(featureId, recalled)
+  // User rates the pair (recalled/not) — FSRS keyed by pair_id
+  const onSwipe = useCallback(async (_featureId: string, recalled: boolean) => {
+    if (!currentCard) return
+    await reviewFeature(currentCard.pair_id, recalled)
 
     setStats(prev => ({
       total: prev.total + 1,

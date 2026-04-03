@@ -65,23 +65,30 @@ export async function getDueCards(limit = 20): Promise<FSRSCardRecord[]> {
     .sortBy('due')
 }
 
-export async function getNewFeatureIds(limit = 10): Promise<string[]> {
-  // Features that have no FSRS card yet (never reviewed)
+/**
+ * Get pair IDs that have no FSRS card yet, prioritizing Layer 1.
+ * Sorted by max TVD of their features (pairs with strongest differentiators first).
+ */
+export async function getNewPairIds(limit = 10): Promise<string[]> {
   const existingIds = new Set(
     (await db.fsrsCards.toCollection().primaryKeys()) as string[]
   )
-  // Get Layer 1 pairs first
   const layer1Pairs = await getLayer1Pairs()
-  const pairIds = new Set(layer1Pairs.map(p => p.id))
 
+  // Filter to pairs not yet in FSRS
+  const available = layer1Pairs.filter(p => !existingIds.has(p.id))
+
+  // Sort by max feature divergence (pairs with strongest differentiators first)
   const allFeatures = await db.features.toArray()
-  const available = allFeatures.filter(f => pairIds.has(f.pair_id) && !existingIds.has(f.id))
+  const maxTvdByPair = new Map<string, number>()
+  for (const f of allFeatures) {
+    const current = maxTvdByPair.get(f.pair_id) || 0
+    if (f.divergence > current) maxTvdByPair.set(f.pair_id, f.divergence)
+  }
 
-  // Only useful features as main cards (traps shown as side info)
-  const useful = available.filter(f => f.divergence >= 0.2)
-  useful.sort((a, b) => b.divergence - a.divergence)
+  available.sort((a, b) => (maxTvdByPair.get(b.id) || 0) - (maxTvdByPair.get(a.id) || 0))
 
-  return useful.slice(0, limit).map(f => f.id)
+  return available.slice(0, limit).map(p => p.id)
 }
 
 // ─── Content loading ──────────────────────────────────────

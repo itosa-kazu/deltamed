@@ -1,22 +1,22 @@
-import { db, getDueCards, getNewFeatureIds } from './db'
+import { db, getDueCards, getNewPairIds } from './db'
 import { initializeCard } from './fsrs'
 import type {
   S3Card,
   S3Concept,
+  S3Trap,
   Disease,
   DifferentialFeature,
-  ConfusablePair,
 } from './types'
 
 /** Daily new card limit */
-const NEW_CARDS_PER_DAY = 15
+const NEW_CARDS_PER_DAY = 10
 
 /**
  * Build review queue: ALL due cards + daily new cards (Anki mode).
- * Level 1 only for now (single pair, single variable).
+ * Each card = one disease pair with ALL differentiating variables.
  */
 export async function buildReviewQueue(): Promise<S3Card[]> {
-  // 1. Get ALL due cards (no limit — must finish all reviews)
+  // 1. Get ALL due cards (pair-level FSRS)
   const dueCards = await getDueCards(10000)
 
   // 2. Count how many new cards introduced today
@@ -26,30 +26,33 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
     .where('reviewed_at')
     .aboveOrEqual(todayStart)
     .toArray()
-  const reviewedFeatureIds = new Set(todayLogs.map(l => l.feature_id))
+  const reviewedIds = new Set(todayLogs.map(l => l.feature_id))
 
-  // Count new cards already introduced today (first review ever = reps was 0)
-  const todayNewCount = await countTodayNewCards(reviewedFeatureIds)
+  let todayNewCount = 0
+  for (const id of reviewedIds) {
+    const card = await db.fsrsCards.get(id)
+    if (card && card.reps <= 1) todayNewCount++
+  }
   const newSlots = Math.max(0, NEW_CARDS_PER_DAY - todayNewCount)
 
-  // 3. Fill with new cards
-  let newFeatureIds: string[] = []
+  // 3. Fill with new pair cards
+  let newPairIds: string[] = []
   if (newSlots > 0) {
-    newFeatureIds = await getNewFeatureIds(newSlots)
-    for (const fid of newFeatureIds) {
-      await initializeCard(fid)
+    newPairIds = await getNewPairIds(newSlots)
+    for (const pid of newPairIds) {
+      await initializeCard(pid)
     }
   }
 
-  // 4. Collect all feature IDs
-  const allFeatureIds = [
+  // 4. Collect all pair IDs to show
+  const allPairIds = [
     ...dueCards.map(c => c.id),
-    ...newFeatureIds,
+    ...newPairIds,
   ]
 
-  if (allFeatureIds.length === 0) return []
+  if (allPairIds.length === 0) return []
 
-  // 4. Fetch feature data and build S3Cards
+  // 5. Fetch data and build S3Cards
   const diseaseMap = new Map<string, Disease>()
   const allDiseases = await db.diseases.toArray()
   allDiseases.forEach(d => diseaseMap.set(d.id, d))
@@ -58,82 +61,61 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
   const allVars = await db.variables.toArray()
   allVars.forEach(v => variableMap.set(v.id, v.name_ja))
 
-  // Pre-fetch trap features per pair (low TVD)
+  // Group features by pair
   const allFeatures = await db.features.toArray()
-  const trapsByPair = new Map<string, { variable_ja: string; divergence: number }[]>()
+  const featuresByPair = new Map<string, DifferentialFeature[]>()
   for (const f of allFeatures) {
-    if (f.divergence < 0.15) {
-      const existing = trapsByPair.get(f.pair_id) || []
-      existing.push({
-        variable_ja: variableMap.get(f.variable_id) || f.variable_id,
-        divergence: f.divergence,
-      })
-      trapsByPair.set(f.pair_id, existing)
-    }
-  }
-  // Sort traps by lowest TVD first, keep top 3 per pair
-  for (const [pid, traps] of trapsByPair) {
-    traps.sort((a, b) => a.divergence - b.divergence)
-    trapsByPair.set(pid, traps.slice(0, 3))
+    const existing = featuresByPair.get(f.pair_id) || []
+    existing.push(f)
+    featuresByPair.set(f.pair_id, existing)
   }
 
   const cards: S3Card[] = []
-  for (const featureId of allFeatureIds) {
-    const feature = await db.features.get(featureId)
-    if (!feature || feature.divergence < 0.2) continue // only useful features as main cards
-
-    const pair = await db.pairs.get(feature.pair_id)
+  for (const pairId of allPairIds) {
+    const pair = await db.pairs.get(pairId)
     if (!pair) continue
 
-    const pairTraps = trapsByPair.get(pair.id) || []
-    const card = buildLevel1Card(feature, pair, diseaseMap, variableMap, pairTraps)
-    if (card) cards.push(card)
+    const da = diseaseMap.get(pair.disease_a)
+    const db_disease = diseaseMap.get(pair.disease_b)
+    if (!da || !db_disease) continue
+
+    const pairFeatures = featuresByPair.get(pairId) || []
+
+    // Useful concepts (TVD >= 0.2), sorted by TVD descending
+    const useful = pairFeatures
+      .filter(f => f.divergence >= 0.2)
+      .sort((a, b) => b.divergence - a.divergence)
+
+    if (useful.length === 0) continue
+
+    const concepts: S3Concept[] = useful.map(f => ({
+      featureId: f.id,
+      variable_ja: variableMap.get(f.variable_id) || f.variable_id,
+      dist_a: f.dist_a,
+      dist_b: f.dist_b,
+      divergence: f.divergence,
+    }))
+
+    // Trap info (TVD < 0.15), top 3
+    const traps: S3Trap[] = pairFeatures
+      .filter(f => f.divergence < 0.15)
+      .sort((a, b) => a.divergence - b.divergence)
+      .slice(0, 3)
+      .map(f => ({
+        variable_ja: variableMap.get(f.variable_id) || f.variable_id,
+        divergence: f.divergence,
+      }))
+
+    cards.push({
+      level: 1,
+      question: `${da.name_ja} vs ${db_disease.name_ja}`,
+      pair_id: pairId,
+      disease_a_ja: da.name_ja,
+      disease_b_ja: db_disease.name_ja,
+      concepts,
+      traps,
+    })
   }
 
   return cards
-}
-
-/**
- * Count how many genuinely new cards were introduced today.
- * A "new card" = feature whose FSRS card has reps <= 1 and was reviewed today.
- */
-async function countTodayNewCards(reviewedFeatureIds: Set<string>): Promise<number> {
-  let count = 0
-  for (const fid of reviewedFeatureIds) {
-    const card = await db.fsrsCards.get(fid)
-    if (card && card.reps <= 1) count++
-  }
-  return count
-}
-
-function buildLevel1Card(
-  feature: DifferentialFeature,
-  pair: ConfusablePair,
-  diseaseMap: Map<string, Disease>,
-  variableMap: Map<string, string>,
-  traps: { variable_ja: string; divergence: number }[],
-): S3Card | null {
-  const da = diseaseMap.get(pair.disease_a)
-  const db_disease = diseaseMap.get(pair.disease_b)
-  if (!da || !db_disease) return null
-
-  const varName = variableMap.get(feature.variable_id) || feature.variable_id
-
-  const concept: S3Concept = {
-    featureId: feature.id,
-    variable_ja: varName,
-    dist_a: feature.dist_a,
-    dist_b: feature.dist_b,
-    divergence: feature.divergence,
-  }
-
-  return {
-    level: 1,
-    question: `${da.name_ja} vs ${db_disease.name_ja}`,
-    pair_id: pair.id,
-    disease_a_ja: da.name_ja,
-    disease_b_ja: db_disease.name_ja,
-    concepts: [concept],
-    traps,
-  }
 }
