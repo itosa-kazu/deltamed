@@ -94,7 +94,7 @@ export async function getNewPairIds(limit = 10): Promise<string[]> {
 // ─── Content loading ──────────────────────────────────────
 
 /** Bump this when Supabase data changes to force re-download */
-const DATA_VERSION = 4  // v4: TVD→max|logLR|, threshold 0.7/0.4
+const DATA_VERSION = 5  // v5: D76 CPT修正 + confusion>=2フィルタ(33対) + 報告ボタン
 
 export async function isContentLoaded(): Promise<boolean> {
   const count = await db.diseases.count()

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import type { S3Card, S3Concept } from '../../lib/types'
 import { getStateLabel } from '../../lib/stateLabels'
 import { ratioToRating } from '../../lib/fsrs'
+import { addFeedback } from '../../lib/db'
+import { supabase } from '../../lib/supabase'
 import { Rating } from 'ts-fsrs'
 
 interface Props {
@@ -130,6 +132,34 @@ function ConceptBlock({ concept, rank, recalled, onToggle, diseaseA, diseaseB }:
   diseaseA: string
   diseaseB: string
 }) {
+  const [flagged, setFlagged] = useState(false)
+
+  const handleFlag = async (e: React.MouseEvent) => {
+    e.stopPropagation() // don't toggle checkbox
+    if (flagged) return
+    const feedback = {
+      id: crypto.randomUUID(),
+      feature_id: concept.featureId,
+      disease_a: diseaseA,
+      disease_b: diseaseB,
+      variable_id: concept.variable_ja,
+      feedback_type: 'wrong_cpt' as const,
+      description: `${concept.variable_ja}: ${diseaseA} vs ${diseaseB} — CPT要確認`,
+      status: 'pending' as const,
+      created_at: new Date(),
+      synced_at: undefined,
+    }
+    await addFeedback(feedback)
+    try {
+      await supabase.from('vesmed_feedback').insert({
+        id: feedback.id, feature_id: feedback.feature_id,
+        disease_a: feedback.disease_a, disease_b: feedback.disease_b,
+        variable_id: feedback.variable_id, feedback_type: feedback.feedback_type,
+        description: feedback.description, status: feedback.status,
+      })
+    } catch { /* offline */ }
+    setFlagged(true)
+  }
   const allStates = Array.from(
     new Set([...Object.keys(concept.dist_a), ...Object.keys(concept.dist_b)])
   ).sort((a, b) => stateSeverity(b) - stateSeverity(a))
@@ -160,7 +190,16 @@ function ConceptBlock({ concept, rank, recalled, onToggle, diseaseA, diseaseB }:
           </div>
           <span className="text-sm font-bold text-emerald-400">{concept.variable_ja}</span>
         </div>
-        <span className="text-[10px] text-slate-600 shrink-0">LR {concept.bestLR.toFixed(1)}x</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] text-slate-600">LR {concept.bestLR.toFixed(1)}x</span>
+          <button
+            onClick={handleFlag}
+            className={`w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center
+                       transition-colors ${flagged
+                         ? 'bg-orange-500/30 text-orange-400'
+                         : 'bg-slate-700/40 text-slate-600 active:bg-orange-500/20'}`}
+          >!</button>
+        </div>
       </div>
 
       {/* Best state explanation */}
