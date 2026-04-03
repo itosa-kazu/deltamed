@@ -5,15 +5,19 @@ import { addFeedback } from '../../lib/db'
 import { supabase } from '../../lib/supabase'
 import { getStateLabel } from '../../lib/stateLabels'
 
+/** TVD threshold: >= this means the variable IS useful for differentiation */
+const USEFUL_THRESHOLD = 0.2
+
 interface Props {
   card: S3Card
+  userJudgedUseful: boolean
   onSwipe: (featureId: string, recalled: boolean) => void
   onFlag: (featureId: string) => void
   index: number
   total: number
 }
 
-export function AnswerReveal({ card, onSwipe, onFlag, index, total }: Props) {
+export function AnswerReveal({ card, userJudgedUseful, onSwipe, onFlag, index, total }: Props) {
   const concept = card.concepts[0]
   const [flagged, setFlagged] = useState(false)
   const [showFlagConfirm, setShowFlagConfirm] = useState(false)
@@ -107,10 +111,29 @@ export function AnswerReveal({ card, onSwipe, onFlag, index, total }: Props) {
           {flagged ? '!' : '?'}
         </button>
 
-        {/* Variable name — the main answer */}
+        {/* Judgment feedback */}
+        {(() => {
+          const actuallyUseful = concept.divergence >= USEFUL_THRESHOLD
+          const correct = userJudgedUseful === actuallyUseful
+          return (
+            <div className={`text-center mb-2 py-1.5 rounded-lg text-sm font-bold
+                            ${correct
+                              ? 'bg-emerald-500/15 text-emerald-400'
+                              : 'bg-red-500/15 text-red-400'}`}>
+              {correct ? '正解!' : '不正解'}
+              <span className="font-normal text-xs ml-2">
+                {actuallyUseful
+                  ? `TVD=${concept.divergence.toFixed(2)} — 鑑別に有用`
+                  : `TVD=${concept.divergence.toFixed(2)} — 鑑別に有用でない`}
+              </span>
+            </div>
+          )
+        })()}
+
+        {/* Variable name */}
         <div className="text-center mb-3">
           <div className="text-[10px] tracking-wider text-slate-500 uppercase mb-1">
-            鑑別に有用な検査・所見
+            検査・所見
           </div>
           <div className="text-lg font-bold text-emerald-400">
             {concept.variable_ja}
@@ -153,11 +176,7 @@ export function AnswerReveal({ card, onSwipe, onFlag, index, total }: Props) {
               {line}
             </div>
           ))}
-          <div className="text-center pt-0.5">
-            <span className="text-slate-600 text-[10px]">
-              TVD = {concept.divergence.toFixed(2)}
-            </span>
-          </div>
+          {/* TVD shown in judgment feedback above */}
         </div>
       </motion.div>
 

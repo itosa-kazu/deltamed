@@ -70,21 +70,36 @@ export async function getNewFeatureIds(limit = 10): Promise<string[]> {
   const existingIds = new Set(
     (await db.fsrsCards.toCollection().primaryKeys()) as string[]
   )
-  // Get Layer 1 pairs first, then their features sorted by delta
+  // Get Layer 1 pairs first
   const layer1Pairs = await getLayer1Pairs()
   const pairIds = new Set(layer1Pairs.map(p => p.id))
 
-  const allFeatures = await db.features
-    .orderBy('divergence')
-    .reverse()
-    .toArray()
+  const allFeatures = await db.features.toArray()
+  const available = allFeatures.filter(f => pairIds.has(f.pair_id) && !existingIds.has(f.id))
 
-  // Prioritize features from Layer 1 pairs
-  const layer1Features = allFeatures.filter(f => pairIds.has(f.pair_id) && !existingIds.has(f.id))
-  const otherFeatures = allFeatures.filter(f => !pairIds.has(f.pair_id) && !existingIds.has(f.id))
+  // Split into useful (TVD >= 0.2) and traps (TVD < 0.2)
+  const useful = available.filter(f => f.divergence >= 0.2)
+  const traps = available.filter(f => f.divergence < 0.2)
 
-  const combined = [...layer1Features, ...otherFeatures]
-  return combined.slice(0, limit).map(f => f.id)
+  // Sort each by divergence (useful: highest first, traps: lowest first = best traps)
+  useful.sort((a, b) => b.divergence - a.divergence)
+  traps.sort((a, b) => a.divergence - b.divergence)
+
+  // Mix ~70% useful + ~30% traps
+  const usefulSlots = Math.ceil(limit * 0.7)
+  const trapSlots = limit - usefulSlots
+  const picked = [
+    ...useful.slice(0, usefulSlots),
+    ...traps.slice(0, trapSlots),
+  ]
+
+  // Shuffle so traps aren't always at the end
+  for (let i = picked.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [picked[i], picked[j]] = [picked[j], picked[i]]
+  }
+
+  return picked.slice(0, limit).map(f => f.id)
 }
 
 // ─── Content loading ──────────────────────────────────────

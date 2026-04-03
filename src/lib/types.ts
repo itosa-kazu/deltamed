@@ -99,9 +99,8 @@ export interface VeSMedFeedback {
 
 export type SessionPhase =
   | 'loading'
-  | 'question'       // Showing question, user generating answer
-  | 'revealing'      // Showing concepts one by one
-  | 'swiping'        // User swiping per concept
+  | 'question'       // Showing question + variable, user judges useful/not
+  | 'revealing'      // Showing answer + judgment feedback
   | 'summary'        // Session complete
   | 'empty'          // No cards due
 

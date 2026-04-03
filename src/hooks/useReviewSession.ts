@@ -9,6 +9,7 @@ export function useReviewSession() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [phase, setPhase] = useState<SessionPhase>('loading')
   const [stats, setStats] = useState<SessionStats>({ total: 0, recalled: 0, forgotten: 0 })
+  const [userJudgedUseful, setUserJudgedUseful] = useState(false)
 
   const currentCard = cards[currentIndex] ?? null
 
@@ -26,8 +27,9 @@ export function useReviewSession() {
     loadQueue()
   }, [loadQueue])
 
-  // User taps "Ready" — show answer
-  const onReady = useCallback(() => {
+  // User judges: useful or not useful
+  const onJudge = useCallback((useful: boolean) => {
+    setUserJudgedUseful(useful)
     setPhase('revealing')
   }, [])
 
@@ -57,7 +59,6 @@ export function useReviewSession() {
 
   // User flagged a card — skip FSRS, delete card from schedule, advance
   const onFlag = useCallback(async (featureId: string) => {
-    // Remove FSRS card so it won't appear in future reviews
     await db.fsrsCards.delete(featureId)
     advanceCard()
   }, [advanceCard])
@@ -73,7 +74,8 @@ export function useReviewSession() {
     currentIndex,
     totalCards: cards.length,
     stats,
-    onReady,
+    userJudgedUseful,
+    onJudge,
     onSwipe,
     onFlag,
     restart,

@@ -10,7 +10,8 @@ export function ReviewSession() {
     currentIndex,
     totalCards,
     stats,
-    onReady,
+    userJudgedUseful,
+    onJudge,
     onSwipe,
     onFlag,
     restart,
@@ -28,20 +29,12 @@ export function ReviewSession() {
     return (
       <div className="flex flex-col items-center justify-center h-full px-6">
         <div className="text-6xl mb-4">&#10003;</div>
-        <div className="text-xl font-bold mb-2">復習完了</div>
+        <div className="text-xl font-bold mb-2">今日の復習完了</div>
         <div className="text-slate-400 text-center">
-          今日のカードはすべて復習済みです。
+          すべてのカードを復習しました。
           <br />
-          新しいカードを追加するか、後でまた来てください。
+          明日また来てください。
         </div>
-        <button
-          onClick={restart}
-          className="mt-8 bg-slate-700 hover:bg-slate-600 text-white
-                     font-medium px-8 py-3 rounded-xl transition-colors
-                     touch-manipulation"
-        >
-          再確認
-        </button>
       </div>
     )
   }
@@ -56,7 +49,7 @@ export function ReviewSession() {
     return (
       <QuestionCard
         card={currentCard}
-        onReady={onReady}
+        onJudge={onJudge}
         index={currentIndex}
         total={totalCards}
       />
@@ -67,6 +60,7 @@ export function ReviewSession() {
   return (
     <AnswerReveal
       card={currentCard}
+      userJudgedUseful={userJudgedUseful}
       onSwipe={onSwipe}
       onFlag={onFlag}
       index={currentIndex}
