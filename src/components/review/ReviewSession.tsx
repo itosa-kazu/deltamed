@@ -10,8 +10,7 @@ export function ReviewSession() {
     currentIndex,
     totalCards,
     stats,
-    userJudgedUseful,
-    onJudge,
+    onReady,
     onSwipe,
     onFlag,
     restart,
@@ -49,7 +48,7 @@ export function ReviewSession() {
     return (
       <QuestionCard
         card={currentCard}
-        onJudge={onJudge}
+        onReady={onReady}
         index={currentIndex}
         total={totalCards}
       />
@@ -60,7 +59,6 @@ export function ReviewSession() {
   return (
     <AnswerReveal
       card={currentCard}
-      userJudgedUseful={userJudgedUseful}
       onSwipe={onSwipe}
       onFlag={onFlag}
       index={currentIndex}

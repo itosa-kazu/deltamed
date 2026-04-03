@@ -68,6 +68,13 @@ export interface S3Card {
   disease_a_ja: string
   disease_b_ja: string
   concepts: S3Concept[]
+  /** Low-TVD variables that are NOT useful for this pair (trap knowledge) */
+  traps: S3Trap[]
+}
+
+export interface S3Trap {
+  variable_ja: string
+  divergence: number
 }
 
 export interface S3Concept {
@@ -99,8 +106,8 @@ export interface VeSMedFeedback {
 
 export type SessionPhase =
   | 'loading'
-  | 'question'       // Showing question + variable, user judges useful/not
-  | 'revealing'      // Showing answer + judgment feedback
+  | 'question'       // Showing question, user generating answer
+  | 'revealing'      // Showing answer with distribution
   | 'summary'        // Session complete
   | 'empty'          // No cards due
 

@@ -58,15 +58,35 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
   const allVars = await db.variables.toArray()
   allVars.forEach(v => variableMap.set(v.id, v.name_ja))
 
+  // Pre-fetch trap features per pair (low TVD)
+  const allFeatures = await db.features.toArray()
+  const trapsByPair = new Map<string, { variable_ja: string; divergence: number }[]>()
+  for (const f of allFeatures) {
+    if (f.divergence < 0.15) {
+      const existing = trapsByPair.get(f.pair_id) || []
+      existing.push({
+        variable_ja: variableMap.get(f.variable_id) || f.variable_id,
+        divergence: f.divergence,
+      })
+      trapsByPair.set(f.pair_id, existing)
+    }
+  }
+  // Sort traps by lowest TVD first, keep top 3 per pair
+  for (const [pid, traps] of trapsByPair) {
+    traps.sort((a, b) => a.divergence - b.divergence)
+    trapsByPair.set(pid, traps.slice(0, 3))
+  }
+
   const cards: S3Card[] = []
   for (const featureId of allFeatureIds) {
     const feature = await db.features.get(featureId)
-    if (!feature) continue
+    if (!feature || feature.divergence < 0.2) continue // only useful features as main cards
 
     const pair = await db.pairs.get(feature.pair_id)
     if (!pair) continue
 
-    const card = buildLevel1Card(feature, pair, diseaseMap, variableMap)
+    const pairTraps = trapsByPair.get(pair.id) || []
+    const card = buildLevel1Card(feature, pair, diseaseMap, variableMap, pairTraps)
     if (card) cards.push(card)
   }
 
@@ -91,6 +111,7 @@ function buildLevel1Card(
   pair: ConfusablePair,
   diseaseMap: Map<string, Disease>,
   variableMap: Map<string, string>,
+  traps: { variable_ja: string; divergence: number }[],
 ): S3Card | null {
   const da = diseaseMap.get(pair.disease_a)
   const db_disease = diseaseMap.get(pair.disease_b)
@@ -113,5 +134,6 @@ function buildLevel1Card(
     disease_a_ja: da.name_ja,
     disease_b_ja: db_disease.name_ja,
     concepts: [concept],
+    traps,
   }
 }
