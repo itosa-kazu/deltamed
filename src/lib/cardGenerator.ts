@@ -8,17 +8,31 @@ import type {
   ConfusablePair,
 } from './types'
 
+/** Daily new card limit */
+const NEW_CARDS_PER_DAY = 15
+
 /**
- * Build review queue: due cards + new cards, returned as S3Card objects.
+ * Build review queue: ALL due cards + daily new cards (Anki mode).
  * Level 1 only for now (single pair, single variable).
  */
-export async function buildReviewQueue(maxCards = 20, newCardLimit = 5): Promise<S3Card[]> {
-  // 1. Get due cards (reviews)
-  const dueCards = await getDueCards(maxCards)
+export async function buildReviewQueue(): Promise<S3Card[]> {
+  // 1. Get ALL due cards (no limit — must finish all reviews)
+  const dueCards = await getDueCards(10000)
 
-  // 2. Fill remaining slots with new cards
-  const remaining = maxCards - dueCards.length
-  const newSlots = Math.min(remaining, newCardLimit)
+  // 2. Count how many new cards introduced today
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const todayLogs = await db.reviewLogs
+    .where('reviewed_at')
+    .aboveOrEqual(todayStart)
+    .toArray()
+  const reviewedFeatureIds = new Set(todayLogs.map(l => l.feature_id))
+
+  // Count new cards already introduced today (first review ever = reps was 0)
+  const todayNewCount = await countTodayNewCards(reviewedFeatureIds)
+  const newSlots = Math.max(0, NEW_CARDS_PER_DAY - todayNewCount)
+
+  // 3. Fill with new cards
   let newFeatureIds: string[] = []
   if (newSlots > 0) {
     newFeatureIds = await getNewFeatureIds(newSlots)
@@ -27,7 +41,7 @@ export async function buildReviewQueue(maxCards = 20, newCardLimit = 5): Promise
     }
   }
 
-  // 3. Collect all feature IDs
+  // 4. Collect all feature IDs
   const allFeatureIds = [
     ...dueCards.map(c => c.id),
     ...newFeatureIds,
@@ -57,6 +71,19 @@ export async function buildReviewQueue(maxCards = 20, newCardLimit = 5): Promise
   }
 
   return cards
+}
+
+/**
+ * Count how many genuinely new cards were introduced today.
+ * A "new card" = feature whose FSRS card has reps <= 1 and was reviewed today.
+ */
+async function countTodayNewCards(reviewedFeatureIds: Set<string>): Promise<number> {
+  let count = 0
+  for (const fid of reviewedFeatureIds) {
+    const card = await db.fsrsCards.get(fid)
+    if (card && card.reps <= 1) count++
+  }
+  return count
 }
 
 function buildLevel1Card(

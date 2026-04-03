@@ -15,7 +15,7 @@ export function useReviewSession() {
   // Load review queue
   const loadQueue = useCallback(async () => {
     setPhase('loading')
-    const queue = await buildReviewQueue(20, 5)
+    const queue = await buildReviewQueue()
     setCards(queue)
     setCurrentIndex(0)
     setStats({ total: 0, recalled: 0, forgotten: 0 })
