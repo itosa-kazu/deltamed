@@ -81,9 +81,9 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
 
     const pairFeatures = featuresByPair.get(pairId) || []
 
-    // Useful concepts (TVD >= 0.2), sorted by TVD descending
+    // Useful concepts (max|logLR| >= 0.7), sorted descending
     const useful = pairFeatures
-      .filter(f => f.divergence >= 0.2)
+      .filter(f => f.divergence >= 0.7)
       .sort((a, b) => b.divergence - a.divergence)
 
     if (useful.length === 0) continue
@@ -96,9 +96,9 @@ export async function buildReviewQueue(): Promise<S3Card[]> {
       divergence: f.divergence,
     }))
 
-    // Trap info (TVD < 0.15), top 3
+    // Trap info (max|logLR| < 0.4 = LR < 1.5), top 3
     const traps: S3Trap[] = pairFeatures
-      .filter(f => f.divergence < 0.15)
+      .filter(f => f.divergence < 0.4)
       .sort((a, b) => a.divergence - b.divergence)
       .slice(0, 3)
       .map(f => ({

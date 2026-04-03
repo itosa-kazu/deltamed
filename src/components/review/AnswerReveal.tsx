@@ -156,7 +156,7 @@ function ConceptBlock({ concept, rank, recalled, onToggle }: {
           </div>
           <span className="text-sm font-bold text-emerald-400">{concept.variable_ja}</span>
         </div>
-        <span className="text-[10px] text-slate-600 shrink-0">TVD {concept.divergence.toFixed(2)}</span>
+        <span className="text-[10px] text-slate-600 shrink-0">LR {Math.exp(concept.divergence).toFixed(1)}x</span>
       </div>
 
       {/* Distribution */}
