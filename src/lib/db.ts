@@ -86,12 +86,18 @@ export async function getNewFeatureIds(limit = 10): Promise<string[]> {
 
 // ─── Content loading ──────────────────────────────────────
 
+/** Bump this when Supabase data changes to force re-download */
+const DATA_VERSION = 2  // v2: added trap features (TVD<0.15)
+
 export async function isContentLoaded(): Promise<boolean> {
   const count = await db.diseases.count()
   if (count === 0) return false
   // Check if features have new per-variable format (dist_a field)
   const sample = await db.features.limit(1).first()
   if (sample && !sample.dist_a) return false
+  // Check data version
+  const storedVersion = parseInt(localStorage.getItem('dmed_data_version') || '0')
+  if (storedVersion < DATA_VERSION) return false
   return true
 }
 
@@ -115,6 +121,7 @@ export async function loadContentFromJSON(data: {
     await db.pairs.bulkAdd(data.pairs)
     await db.features.bulkAdd(data.features)
   })
+  localStorage.setItem('dmed_data_version', String(DATA_VERSION))
 }
 
 // ─── Feedback ─────────────────────────────────────────────
