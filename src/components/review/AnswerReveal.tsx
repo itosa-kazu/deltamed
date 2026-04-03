@@ -137,16 +137,15 @@ function ConceptBlock({ concept, rank, recalled, onToggle }: {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: rank * 0.06 }}
-      className={`border rounded-xl p-3 w-full transition-colors
+      onClick={onToggle}
+      className={`border rounded-xl p-3 w-full transition-colors cursor-pointer
+                  touch-manipulation active:scale-[0.99]
                   ${recalled
                     ? 'bg-emerald-500/10 border-emerald-500/30'
                     : 'bg-slate-800/60 border-slate-700/50'}`}
     >
       {/* Header: checkbox + variable name + TVD */}
-      <button
-        onClick={onToggle}
-        className="flex items-center justify-between w-full mb-2 touch-manipulation"
-      >
+      <div className="flex items-center justify-between w-full mb-2">
         <div className="flex items-center gap-2">
           <div className={`w-5 h-5 rounded flex items-center justify-center text-xs
                           border transition-colors shrink-0
@@ -158,7 +157,7 @@ function ConceptBlock({ concept, rank, recalled, onToggle }: {
           <span className="text-sm font-bold text-emerald-400">{concept.variable_ja}</span>
         </div>
         <span className="text-[10px] text-slate-600 shrink-0">TVD {concept.divergence.toFixed(2)}</span>
-      </button>
+      </div>
 
       {/* Distribution */}
       {isBinary ? (
